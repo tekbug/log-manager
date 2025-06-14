@@ -56,7 +56,7 @@ public class LogContextAspect {
    * <p>All added keys are automatically removed from the context after the method completes,
    * ensuring that context information is not leaked between requests or method calls.
    *
-   * @param pjp The AOP join point representing the intercepted method call.
+   * @param joinPoint The AOP join point representing the intercepted method call.
    * @param logContextAnnotation The {@link LogContext} annotation instance 
    *                             containing SpEL expressions.
    * @return The result of the method execution.
@@ -65,14 +65,14 @@ public class LogContextAspect {
   
   @Around("@annotation(logContextAnnotation)")
   public Object addInformationFromExpression(
-      ProceedingJoinPoint pjp,
+      ProceedingJoinPoint joinPoint,
       LogContext logContextAnnotation
   ) throws Throwable {
     final List<String> addedKeys = new ArrayList<>();
     try {
       if (logContextAnnotation.expressions().length > 0) {
-        final MethodSignature signature = (MethodSignature) pjp.getSignature();
-        final Object[] args = pjp.getArgs();
+        final MethodSignature signature = (MethodSignature) joinPoint.getSignature();
+        final Object[] args = joinPoint.getArgs();
         final String[] paramNames = signature.getParameterNames();
 
         final StandardEvaluationContext evalContext = new StandardEvaluationContext();
@@ -92,7 +92,7 @@ public class LogContextAspect {
           }
         }
       }
-      return pjp.proceed();
+      return joinPoint.proceed();
     } finally {
       addedKeys.forEach(loggingContext::remove);
     }
