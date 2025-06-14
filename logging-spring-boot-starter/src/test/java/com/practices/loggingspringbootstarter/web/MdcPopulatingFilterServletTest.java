@@ -23,7 +23,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.junit.jupiter.params.provider.NullSource;
 
 @ExtendWith(MockitoExtension.class)
-class MdcPopulatingFilterTest {
+class MdcPopulatingFilterServletTest {
 
   private static final String HEADER_USER_ID = "X-User-ID";
   private static final String MDC_USER_ID = "userID";
@@ -40,11 +40,11 @@ class MdcPopulatingFilterTest {
   @Mock
   private FilterChain filterChain;
 
-  private MdcPopulatingFilter filter;
+  private MdcPopulatingFilterServlet filter;
 
   @BeforeEach
   void setUp() {
-    filter = new MdcPopulatingFilter(loggingContext);
+    filter = new MdcPopulatingFilterServlet(loggingContext);
   }
 
   @Test
@@ -150,7 +150,7 @@ class MdcPopulatingFilterTest {
 
   @Test
   void shouldHandleNullLoggingContextGracefully() {
-    MdcPopulatingFilter filterWithNullContext = new MdcPopulatingFilter(null);
+    MdcPopulatingFilterServlet filterWithNullContext = new MdcPopulatingFilterServlet(null);
     NullPointerException exception = assertThrows(NullPointerException.class, () -> {
       filterWithNullContext.doFilterInternal(request, response, filterChain);
     });
@@ -190,7 +190,7 @@ class MdcPopulatingFilterTest {
 
   @Test
   void shouldHandleVeryLongUserId() throws ServletException, IOException {
-    String longUserId = "a".repeat(1000); // Very long user ID
+    String longUserId = "a".repeat(1000);
     when(request.getHeader(HEADER_USER_ID)).thenReturn(longUserId);
     filter.doFilterInternal(request, response, filterChain);
 

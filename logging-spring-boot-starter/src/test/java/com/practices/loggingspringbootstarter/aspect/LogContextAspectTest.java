@@ -28,7 +28,6 @@ class LogContextAspectTest {
     }
   }
 
-  // A simple service with methods annotated with @LogContext for us to test.
   static class TestService {
     @LogContext(expressions = {"orderId=#id", "customerName=#customer.name"})
     public void processOrder(String id, Customer customer) {
@@ -36,42 +35,35 @@ class LogContextAspectTest {
       assertThat(MDC.get("customerName")).isEqualTo(customer.name());
     }
 
-    @LogContext(expressions = {"action=test"})
+    @LogContext(expressions = {"action='test'"})
     public void methodThatThrows() {
       throw new IllegalStateException("Test exception");
     }
   }
 
-  // A simple record for nested property testing.
   record Customer(String name) {}
 
   @Autowired private TestService testService;
 
   @AfterEach
   void tearDown() {
-    // Ensure MDC is always clean after each test.
     MDC.clear();
   }
 
   @Test
   @DisplayName("should populate MDC from method arguments and clear it afterwards")
   void shouldPopulateMdcFromArgumentsAndClear() {
-    // when
     testService.processOrder("order-123", new Customer("John Doe"));
 
-    // then
-    // The aspect's "finally" block should have cleared the MDC.
     assertThat(MDC.getCopyOfContextMap()).isEmpty();
   }
 
   @Test
   @DisplayName("should clear MDC even when the annotated method throws an exception")
   void shouldClearMdcOnException() {
-    // when / then
     assertThatThrownBy(() -> testService.methodThatThrows())
         .isInstanceOf(IllegalStateException.class);
 
-    // Assert that the aspect's "finally" block still ran and cleared the context.
     assertThat(MDC.get("action")).isNull();
   }
 }

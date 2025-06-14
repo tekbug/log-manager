@@ -11,17 +11,18 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 /**
  * A servlet filter that adds context to the logging context for every incoming HTTP request
- * with common web-related attributes.
+ * with common web-related attributes. This class only makes sure the filtering works with
+ * Servlet (non-reactive) web apps.
  */
 
-public class MdcPopulatingFilter extends OncePerRequestFilter {
+public class MdcPopulatingFilterServlet extends OncePerRequestFilter {
 
   private static final String HEADER_USER_ID = "X-User-ID";
   private static final String MDC_USER_ID = "userID";
 
   private final LoggingContext loggingContext;
 
-  public MdcPopulatingFilter(LoggingContext loggingContext) {
+  public MdcPopulatingFilterServlet(LoggingContext loggingContext) {
     this.loggingContext = loggingContext;
   }
 
