@@ -1,0 +1,2 @@
+com.practices.loggingspringbootstarter.config.CoreLoggingAutoConfiguration
+com.practices.loggingspringbootstarter.config.WebLoggingAutoConfiguration

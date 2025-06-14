@@ -1,0 +1,5 @@
+spring:
+  application:
+    name: "logging-spring-boot-starter"
+  profiles:
+    active: dev
