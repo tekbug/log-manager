@@ -1,0 +1,2 @@
+com.practices.loggingcore.config.CoreLoggingAutoConfiguration
+com.practices.loggingcore.config.WebLoggingAutoConfiguration

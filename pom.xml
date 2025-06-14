@@ -18,7 +18,7 @@
     <description>an updated logging manager for MPESA technologies at Safaricom Ethiopia</description>
 
     <modules>
-        <module>logging-spring-boot-starter</module>
+        <module>logging-core</module>
     </modules>
 
     <properties>
