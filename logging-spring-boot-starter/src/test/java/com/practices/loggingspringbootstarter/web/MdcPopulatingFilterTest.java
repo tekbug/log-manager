@@ -1,67 +1,229 @@
 package com.practices.loggingspringbootstarter.web;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
-import com.practices.loggingspringbootstarter.config.CoreLoggingAutoConfiguration;
-import com.practices.loggingspringbootstarter.config.WebLoggingAutoConfiguration;
-import org.junit.jupiter.api.DisplayName;
+import com.practices.loggingspringbootstarter.core.LoggingContext;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.slf4j.MDC;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.context.annotation.Import;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
-@WebMvcTest
-@Import({CoreLoggingAutoConfiguration.class, WebLoggingAutoConfiguration.class})
-@DisplayName("MdcPopulatingFilter Integration Test")
+import java.io.IOException;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.*;
+
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.params.provider.NullSource;
+
+@ExtendWith(MockitoExtension.class)
 class MdcPopulatingFilterTest {
 
-  @Autowired private MockMvc mockMvc;
+  private static final String HEADER_USER_ID = "X-User-ID";
+  private static final String MDC_USER_ID = "userID";
 
-  @RestController
-  static class TestController {
+  @Mock
+  private LoggingContext loggingContext;
 
-    @GetMapping("/test-mdc")
-    public String getUserIdFromMdc() {
-      return MDC.get("userId");
+  @Mock
+  private HttpServletRequest request;
+
+  @Mock
+  private HttpServletResponse response;
+
+  @Mock
+  private FilterChain filterChain;
+
+  private MdcPopulatingFilter filter;
+
+  @BeforeEach
+  void setUp() {
+    filter = new MdcPopulatingFilter(loggingContext);
+  }
+
+  @Test
+  void shouldSetUserIdInLoggingContextWhenHeaderIsPresent() throws ServletException, IOException {
+    String userId = "user123";
+    when(request.getHeader(HEADER_USER_ID)).thenReturn(userId);
+
+    filter.doFilterInternal(request, response, filterChain);
+
+    verify(loggingContext).set(MDC_USER_ID, userId);
+    verify(filterChain).doFilter(request, response);
+    verify(loggingContext).clearAll();
+  }
+
+  @ParameterizedTest
+  @NullSource
+  @ValueSource(strings = {"", "   ", "\t", "\n", " \t \n "})
+  void shouldNotSetUserIdWhenHeaderIsNullEmptyOrBlank(String headerValue) throws ServletException, IOException {
+    when(request.getHeader(HEADER_USER_ID)).thenReturn(headerValue);
+    filter.doFilterInternal(request, response, filterChain);
+    verify(loggingContext, never()).set(eq(MDC_USER_ID), any());
+    verify(filterChain).doFilter(request, response);
+    verify(loggingContext).clearAll();
+  }
+
+  @Test
+  void shouldSetUserIdWhenHeaderHasWhitespaceButIsNotBlank() throws ServletException, IOException {
+    String userId = " user123 ";
+    when(request.getHeader(HEADER_USER_ID)).thenReturn(userId);
+    filter.doFilterInternal(request, response, filterChain);
+    verify(loggingContext).set(MDC_USER_ID, userId);
+    verify(filterChain).doFilter(request, response);
+    verify(loggingContext).clearAll();
+  }
+
+  @Test
+  void shouldAlwaysClearContextEvenWhenFilterChainThrowsServletException() throws ServletException, IOException {
+    String userId = "user123";
+    when(request.getHeader(HEADER_USER_ID)).thenReturn(userId);
+    ServletException expectedException = new ServletException("Test exception");
+    doThrow(expectedException).when(filterChain).doFilter(request, response);
+    try {
+      filter.doFilterInternal(request, response, filterChain);
+    } catch (ServletException e) {
+      // Expected exception
     }
+
+    verify(loggingContext).set(MDC_USER_ID, userId);
+    verify(filterChain).doFilter(request, response);
+    verify(loggingContext).clearAll();
   }
 
   @Test
-  @DisplayName("should add userId to MDC when X-User-ID header is present")
-  void shouldAddUserIdToMdcWhenHeaderIsPresent() throws Exception {
-    mockMvc
-        .perform(get("/test-mdc").header("X-User-ID", "user-456"))
-        .andExpect(status().isOk())
-        .andExpect(content().string("user-456"));
+  void shouldAlwaysClearContextEvenWhenFilterChainThrowsIOException() throws ServletException, IOException {
+    String userId = "user123";
+    when(request.getHeader(HEADER_USER_ID)).thenReturn(userId);
+    IOException expectedException = new IOException("Test exception");
+    doThrow(expectedException).when(filterChain).doFilter(request, response);
+    try {
+      filter.doFilterInternal(request, response, filterChain);
+    } catch (IOException e) {
+      // Expected exception
+    }
+
+    verify(loggingContext).set(MDC_USER_ID, userId);
+    verify(filterChain).doFilter(request, response);
+    verify(loggingContext).clearAll();
   }
 
   @Test
-  @DisplayName("should not add userId to MDC when X-User-ID header is absent")
-  void shouldNotAddUserIdToMdcWhenHeaderIsAbsent() throws Exception {
-    mockMvc
-        .perform(get("/test-mdc"))
-        .andExpect(status().isOk())
-        .andExpect(content().string("")); // Expect an empty string as MDC.get() returns null.
+  void shouldAlwaysClearContextEvenWhenFilterChainThrowsRuntimeException() throws ServletException, IOException {
+    String userId = "user123";
+    when(request.getHeader(HEADER_USER_ID)).thenReturn(userId);
+    RuntimeException expectedException = new RuntimeException("Test exception");
+    doThrow(expectedException).when(filterChain).doFilter(request, response);
+    try {
+      filter.doFilterInternal(request, response, filterChain);
+    } catch (RuntimeException e) {
+      // Expected exception
+    }
+
+    verify(loggingContext).set(MDC_USER_ID, userId);
+    verify(filterChain).doFilter(request, response);
+    verify(loggingContext).clearAll();
   }
 
   @Test
-  @DisplayName("should clear MDC after request completion")
-  void shouldClearMdcAfterRequest() throws Exception {
-    // Pre-condition: Ensure MDC is clear before starting.
-    MDC.clear();
+  void shouldAlwaysClearContextEvenWhenLoggingContextSetThrowsException() throws ServletException, IOException {
+    String userId = "user123";
+    when(request.getHeader(HEADER_USER_ID)).thenReturn(userId);
+    RuntimeException expectedException = new RuntimeException("MDC set failed");
+    doThrow(expectedException).when(loggingContext).set(MDC_USER_ID, userId);
+    try {
+      filter.doFilterInternal(request, response, filterChain);
+    } catch (RuntimeException e) {
+      // Expected exception
+    }
 
-    // Perform the request that populates the MDC.
-    mockMvc.perform(get("/test-mdc").header("X-User-ID", "user-789"));
+    verify(loggingContext).set(MDC_USER_ID, userId);
+    verify(filterChain, never()).doFilter(request, response);
+    verify(loggingContext).clearAll();
+  }
 
-    // Post-condition: Assert that the filter's "finally" block has cleared the MDC.
-    // This is the most crucial test for preventing context leaks.
-    assertThat(MDC.get("userId")).isNull();
+  @Test
+  void shouldHandleNullLoggingContextGracefully() {
+    MdcPopulatingFilter filterWithNullContext = new MdcPopulatingFilter(null);
+    NullPointerException exception = assertThrows(NullPointerException.class, () -> {
+      filterWithNullContext.doFilterInternal(request, response, filterChain);
+    });
+
+    assertNotNull(exception);
+  }
+
+  @Test
+  void shouldProcessMultipleRequestsIndependently() throws ServletException, IOException {
+    String firstUserId = "user123";
+    String secondUserId = "user456";
+
+    when(request.getHeader(HEADER_USER_ID)).thenReturn(firstUserId);
+    filter.doFilterInternal(request, response, filterChain);
+
+    reset(loggingContext, filterChain);
+    when(request.getHeader(HEADER_USER_ID)).thenReturn(secondUserId);
+
+    filter.doFilterInternal(request, response, filterChain);
+
+    verify(loggingContext).set(MDC_USER_ID, secondUserId);
+    verify(filterChain).doFilter(request, response);
+    verify(loggingContext).clearAll();
+  }
+
+  @Test
+  void shouldHandleSpecialCharactersInUserId() throws ServletException, IOException {
+    String userIdWithSpecialChars = "user@domain.com|special-chars_123";
+    when(request.getHeader(HEADER_USER_ID)).thenReturn(userIdWithSpecialChars);
+
+    filter.doFilterInternal(request, response, filterChain);
+
+    verify(loggingContext).set(MDC_USER_ID, userIdWithSpecialChars);
+    verify(filterChain).doFilter(request, response);
+    verify(loggingContext).clearAll();
+  }
+
+  @Test
+  void shouldHandleVeryLongUserId() throws ServletException, IOException {
+    String longUserId = "a".repeat(1000); // Very long user ID
+    when(request.getHeader(HEADER_USER_ID)).thenReturn(longUserId);
+    filter.doFilterInternal(request, response, filterChain);
+
+    verify(loggingContext).set(MDC_USER_ID, longUserId);
+    verify(filterChain).doFilter(request, response);
+    verify(loggingContext).clearAll();
+  }
+
+  @Test
+  void shouldCallClearAllExactlyOncePerRequest() throws ServletException, IOException {
+    String userId = "user123";
+    when(request.getHeader(HEADER_USER_ID)).thenReturn(userId);
+    filter.doFilterInternal(request, response, filterChain);
+    verify(loggingContext, times(1)).clearAll();
+  }
+
+  @Test
+  void shouldNotCallSetWhenHeaderIsZeroLengthString() throws ServletException, IOException {
+    when(request.getHeader(HEADER_USER_ID)).thenReturn("");
+    filter.doFilterInternal(request, response, filterChain);
+    verify(loggingContext, never()).set(anyString(), anyString());
+    verify(filterChain).doFilter(request, response);
+    verify(loggingContext).clearAll();
+  }
+
+  @Test
+  void shouldMaintainCorrectOrderOfOperations() throws ServletException, IOException {
+    String userId = "user123";
+    when(request.getHeader(HEADER_USER_ID)).thenReturn(userId);
+    filter.doFilterInternal(request, response, filterChain);
+    var inOrder = inOrder(loggingContext, filterChain);
+    inOrder.verify(loggingContext).set(MDC_USER_ID, userId);
+    inOrder.verify(filterChain).doFilter(request, response);
+    inOrder.verify(loggingContext).clearAll();
   }
 }

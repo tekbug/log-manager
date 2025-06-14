@@ -38,20 +38,15 @@ class MdcLoggingContextTest {
   @Test
   @DisplayName("put() should add a key-value pair to the MDC")
   void put_shouldAddValueToMdc() {
-
     loggingContext.set(TEST_KEY, TEST_VALUE);
-
     assertThat(MDC.get(TEST_KEY)).isEqualTo(TEST_VALUE);
   }
 
   @Test
   @DisplayName("set() should overwrite an existing value for the same key")
   void set_shouldOverwriteExistingValue() {
-
     loggingContext.set(TEST_KEY, "initialValue");
-
     loggingContext.set(TEST_KEY, "newValue");
-
     assertThat(MDC.get(TEST_KEY)).isEqualTo("newValue");
   }
 
@@ -59,30 +54,23 @@ class MdcLoggingContextTest {
   @DisplayName("get() should retrieve a value from the MDC")
   void get_shouldRetrieveValueFromMdc() {
     MDC.put(TEST_KEY, TEST_VALUE);
-
     String result = loggingContext.get(TEST_KEY);
-
     assertThat(result).isEqualTo(TEST_VALUE);
   }
 
   @Test
   @DisplayName("get() should return null for a non-existent key")
   void get_shouldReturnNullForNonExistentKey() {
-
     String result = loggingContext.get("nonExistentKey");
-
     assertThat(result).isNull();
   }
 
   @Test
   @DisplayName("remove() should remove a key-value pair from the MDC")
   void remove_shouldRemoveValueFromMdc() {
-
     MDC.put(TEST_KEY, TEST_VALUE);
-    assertThat(MDC.get(TEST_KEY)).isNotNull(); // Pre-condition
-
+    assertThat(MDC.get(TEST_KEY)).isNotNull();
     loggingContext.remove(TEST_KEY);
-
     assertThat(MDC.get(TEST_KEY)).isNull();
   }
 
@@ -93,10 +81,19 @@ class MdcLoggingContextTest {
     assertThat(MDC.getCopyOfContextMap()).isNull();
   }
 
-
+  @Test
+  @DisplayName("MDC.getCopyOfContextMap should return propagated inputs")
+  void shouldReturnPopulatedContextMap() {
+    MDC.put(TEST_KEY, TEST_VALUE);
+    Map<String, String> result = MDC.getCopyOfContextMap();
+    assertThat(result)
+        .isNotNull()
+        .hasSize(1)
+        .containsEntry(TEST_KEY, TEST_VALUE);
+  }
 
   @Test
-  @DisplayName("remove() should do nothing for a non-existent key")
+  @DisplayName("remove() should do nothing for a non-existent key after instantiated")
   void remove_shouldDoNothingForNonExistentKeyWhenParameterized() {
     loggingContext.remove("nonExistentKey");
     Map<String, String> contextMap = MDC.getCopyOfContextMap();
@@ -105,18 +102,13 @@ class MdcLoggingContextTest {
 
   @Test
   @DisplayName("clearAll() should remove all entries from the MDC")
-  void clearAll_shouldRemoveAllEntries() { // Renamed test for clarity
-    // GIVEN
+  void clearAll_shouldRemoveAllEntries() {
     MDC.put(TEST_KEY, TEST_VALUE);
     MDC.put(ANOTHER_KEY, ANOTHER_VALUE);
-    assertThat(MDC.getCopyOfContextMap()).hasSize(2); // Pre-condition
-
-    // WHEN
-    loggingContext.clearAll(); // Call the correctly named method
-
-    // THEN
-    // This test will now pass.
-    assertThat(MDC.getCopyOfContextMap()).isEmpty();
+    assertThat(MDC.getCopyOfContextMap()).hasSize(2);
+    loggingContext.clearAll();
+    Map<String,  String> contextMap = MDC.getCopyOfContextMap();
+    assertThat(contextMap == null || contextMap.isEmpty()).isTrue();
   }
 
   @Test
