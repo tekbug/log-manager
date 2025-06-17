@@ -27,14 +27,19 @@
         <size>250</size>
     </appender>
 
-    <springProfile name="!prod">
+    <springProfile name="dev">
         <root level="INFO">
             <appender-ref ref="COLORED_CONSOLE"/>
-            <appender-ref ref="IN_MEMORY_APPENDER"/>
+            <appender-ref ref="JSON_CONSOLE"/>
         </root>
         <logger name="org.springframework" level="INFO"/>
         <logger name="org.hibernate.SQL" level="DEBUG"/>
     </springProfile>
+
+    <springProfile>
+
+    </springProfile>
+
     <springProfile name="prod">
         <root level="INFO">
             <appender-ref ref="JSON_CONSOLE"/>
